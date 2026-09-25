@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pet English</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+html,body{height:100%;overflow:hidden;background:#f8f8f8;}
+#app{width:100%;height:100%;display:flex;flex-direction:column;}
+#threeCanvas{width:100%;height:42vh;display:block;}
+.panel-bar{display:flex;gap:8px;padding:10px;flex-wrap:wrap;background:#fff;}
+.panel-bar button{padding:6px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:14px;}
+.chat-wrap{flex:1;overflow-y:auto;padding:12px;}
+.msg{margin-bottom:10px;max-width:85%;padding:10px;border-radius:12px;font-size:16px;line-height:1.4;}
+.pet-msg{background:#e7f3ff;align-self:flex-start;border-bottom-left-radius:3px;}
+.user-msg{background:#dcf8c6;margin-left:auto;border-bottom-right-radius:3px;}
+.msg-row{display:flex;flex-direction:column;}
+.read-btn{width:fit-content;margin-top:4px;padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid #bdd7f2;background:#fff;}
+.input-area{display:flex;gap:8px;padding:12px;background:#fff;align-items:center;}
+#inputText{flex:1;padding:12px;border-radius:10px;border:1px solid #ddd;font-size:16px;}
+.input-area button{padding:10px;border-radius:8px;border:none;background:#4285f4;color:#fff;font-size:14px;}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-content{background:#fff;padding:20px;border-radius:14px;width:100%;max-width:400px;}
+.modal-title{font-size:18px;font-weight:bold;margin-bottom:12px;}
+.scene-item{padding:10px;border:1px solid #ddd;border-radius:8px;margin:6px 0;text-align:center;}
+.scene-item.active{background:#4285f4;color:#fff;border-color:#4285f4;}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="threeCanvas"></canvas>
+
+  <div class="panel-bar">
+    <button onclick="openPanel('status')">🐾状态</button>
+    <button onclick="openPanel('petSelect')">🐱宠物</button>
+    <button onclick="openPanel('scene')">🏞️场景</button>
+    <button onclick="openPanel('errorBook')">📖错题本(<span id="errorCount">0</span>)</button>
+    <button onclick="openPanel('checkin')">📅打卡</button>
+  </div>
+
+  <div class="chat-wrap" id="chatBox"></div>
+
+  <div class="input-area">
+    <input id="inputText" placeholder="输入英文对话"/>
+    <button onclick="sendMsg()">发送</button>
+    <button onclick="toggleVoiceRead()">{{voiceReadOn ? "🔊朗读" : "🔇静音"}}</button>
+  </div>
+</div>
+
+<!-- 弹窗：场景选择 -->
+<div class="modal" id="sceneModal">
+  <div class="modal-content">
+    <div class="modal-title">🏞️选择场景</div>
+    <div class="scene-item" data-scene="living" onclick="changeScene('living')">🏠客厅</div>
+    <div class="scene-item" data-scene="bedroom" onclick="changeScene('bedroom')">🛏️卧室</div>
+    <div class="scene-item" data-scene="seaside" onclick="changeScene('seaside')">🌊海边</div>
+    <button style="margin-top:10px;width:100%" onclick="closeModal('sceneModal')">关闭</button>
+  </div>
+</div>
+
+<!-- 弹窗：状态面板 -->
+<div class="modal" id="statusModal">
+  <div class="modal-content">
+    <div class="modal-title">🐾宠物状态</div>
+    <p>宠物名字：<span id="petName">Sunny</span></p>
+    <p>等级：Lv.<span id="petLevel">1</span>｜经验：<span id="petExp">0</span></p>
+    <p>当前场景：<span id="nowScene">客厅</span></p>
+    <p>今日练习次数：<span id="practiceCnt">0</span></p>
+    <p>🔊朗读：<span id="voiceStatus">开启</span></p>
+    <button style="margin-top:10px;width:100%" onclick="closeModal('statusModal')">关闭</button>
+  </div>
+</div>
+
+<!-- 弹窗：宠物选择 -->
+<div class="modal" id="petSelectModal">
+  <div class="modal-content">
+    <div class="modal-title">🐱选择宠物</div>
+    <div class="scene-item" onclick="selectPet('golden')">金毛小狗</div>
+    <div class="scene-item" onclick="selectPet('cat')">小猫</div>
+    <div class="scene-item" onclick="selectPet('fish')">小鱼</div>
+    <div class="scene-item" onclick="selectPet('turtle')">乌龟</div>
+    <button style="margin-top:10px;width:100%" onclick="closeModal('petSelectModal')">关闭</button>
+  </div>
+</div>
+
+<!-- 弹窗：错题本 -->
+<div class="modal" id="errorBookModal">
+  <div class="modal-content">
+    <div class="modal-title">📖错题本</div>
+    <div id="errorListBox"></div>
+    <button style="margin-top:10px;width:100%" onclick="closeModal('errorBookModal')">关闭</button>
+  </div>
+</div>
+
+<!-- 弹窗：每日打卡 -->
+<div class="modal" id="checkinModal">
+  <div class="modal-content">
+    <div class="modal-title">📅每日打卡</div>
+    <p>今日练习时长：<span id="practiceTime">0</span>分钟</p>
+    <p id="checkinTip">未打卡</p>
+    <button onclick="doCheckin()">打卡</button>
+    <button style="margin-top:10px;width:100%" onclick="closeModal('checkinModal')">关闭</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+// ========== 全局状态 ==========
+let state = {
+  petName:"Sunny",
+  petType:"golden",
+  currentScene:"living",
+  voiceReadOn:true,
+  petLevel:1,
+  petExp:0,
+  practiceCount:0,
+  practiceSeconds:0,
+  todayCheckIn:false,
+  errorList:[],
+  chatHistory:[],
+  mode:"practice",
+  speed:"normal"
+};
+// 【⚠️在这里填入你的API密钥】
+const API_KEY = "PASTE_YOUR_LLM_KEY_HERE";
+const TTS_API_KEY = "PASTE_YOUR_TTS_KEY_HERE";
+
+// 加载本地存储
+function loadLocal(){
+  const saved = localStorage.getItem("petEnglishSave");
+  if(saved) state = JSON.parse(saved);
+  refreshUI();
+}
+function saveLocal(){
+  localStorage.setItem("petEnglishSave", JSON.stringify(state));
+  refreshUI();
+}
+
+// ========== ThreeJS 3D场景 ==========
+let scene,camera,renderer,petMesh;
+function initThree(){
+  const canvas = document.getElementById("threeCanvas");
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight,0.1,1000);
+  renderer = new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  // 基础宠物立方体占位（你后续可以替换成宠物模型）
+  const geo = new THREE.BoxGeometry(1,1,1);
+  const mat = new THREE.MeshStandardMaterial({color:0xffd080});
+  petMesh = new THREE.Mesh(geo,mat);
+  scene.add(petMesh);
+  const light = new THREE.AmbientLight(0xffffff,0.8);
+  scene.add(light);
+  camera.position.z = 3;
+  animate();
+}
+function animate(){
+  requestAnimationFrame(animate);
+  if(petMesh) petMesh.rotation.y +=0.008;
+  renderer.render(scene,camera);
+}
+function changeScene(sceneId){
+  state.currentScene = sceneId;
+  const colorMap = {
+    living:0xf7f2e9,
+    bedroom:0xe9edf7,
+    seaside:0xb8e4f9
+  }
+  scene.background = new THREE.Color(colorMap[sceneId]);
+  saveLocal();
+  closeModal("sceneModal");
+}
+
+// ========== TTS朗读 ==========
+let audio = new Audio();
+function toggleVoiceRead(){
+  state.voiceReadOn = !state.voiceReadOn;
+  saveLocal();
+  alert(state.voiceReadOn ? "🔊朗读已开启" : "🔇朗读已关闭");
+}
+async function readText(rawText){
+  if(!state.voiceReadOn) return;
+  const cleanText = rawText.replace(/\*.*?\*/g,"").trim();
+  if(!cleanText) return;
+  // TTS接口占位，替换为你的TTS接口
+  console.log("朗读文本：",cleanText);
+  // const res = await fetch("TTS_URL", {method:"POST", body:JSON.stringify({text:cleanText})});
+  // const data = await res.json();
+  // audio.src = data.audioUrl; audio.play();
+}
+
+// ========== AI对话 ==========
+async function sendMsg(){
+  const inputDom = document.getElementById("inputText");
+  const text = inputDom.value.trim();
+  if(!text) return;
+  addMsg(text,"user");
+  inputDom.value = "";
+  state.chatHistory.push({role:"user",content:text});
+
+  // System Prompt，口语化宠物人设
+  const systemPrompt = `
+You are ${state.petName}, a lovely ${state.petType}.
+Use casual conversational spoken English.
+❌ NO formal textbook sentences.
+❌ Don't be artificially cutesy, no exaggerated baby talk.
+✅ Short everyday sentences, natural chat.
+Add animal action marks *like this* occasionally, do not spam.
+Mode: ${state.mode}. Speed: ${state.speed}.
+Practice mode: gently correct mistakes, at end output marker strictly:
+||WRONG||[user wrong sentence]||RIGHT||[correct spoken version]||NOTE||[short simple explanation]||TYPE||tense/preposition/vocab/sentence/article||
+If no error, no marker.
+Chat mode: no error marker.
+`;
+  try{
+    // 这里替换为你的大模型接口
+    /*
+    const resp = await fetch("LLM_API_URL",{
+      method:"POST",
+      headers:{"Authorization":`Bearer ${API_KEY}`,"Content-Type":"application/json"},
+      body:JSON.stringify({model:"gpt-3.5-turbo",messages:[{role:"system",content:systemPrompt},...state.chatHistory]})
+    })
+    const result = await resp.json();
+    let reply = result.choices[0].message.content;
+    */
+    // 临时模拟回复（测试界面用，接入真实API后删除下面一行）
+    let reply = "Hey! Nice talking with you. *wags tail* How’s your day going?";
+
+    // 解析纠错标记
+    const errorReg = /\|\|WRONG\|\|(.*?)\|\|RIGHT\|\|(.*?)\|\|NOTE\|\|(.*?)\|\|TYPE\|\|(.*?)\|\|/;
+    const match = reply.match(errorReg);
+    if(match){
+      state.errorList.push({wrong:match[1],right:match[2],note:match[3],type:match[4]});
+      reply = reply.replace(errorReg,"").trim();
+    }
+    state.chatHistory.push({role:"assistant",content:reply});
+    addMsg(reply,"pet");
+    readText(reply);
+    state.practiceCount++;
+    state.petExp +=5;
+    saveLocal();
+  }catch(e){
+    addMsg("*droop ears* Oops, something went wrong. Try again.","pet");
+  }
+}
+
+// 渲染聊天消息
+function addMsg(text,type){
+  const box = document.getElementById("chatBox");
+  const wrap = document.createElement("div");
+  wrap.className = "msg-row";
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `msg ${type==='pet'?'pet-msg':'user-msg'}`;
+  msgDiv.innerText = text;
+  wrap.appendChild(msgDiv);
+  if(type==="pet"){
+    const btn = document.createElement("button");
+    btn.className = "read-btn";
+    btn.innerText = "🔊重读";
+    btn.onclick = ()=>readText(text);
+    wrap.appendChild(btn);
+  }
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ==========弹窗控制 ==========
+function openPanel(name){
+  const map = {status:"statusModal",petSelect:"petSelectModal",scene:"sceneModal",errorBook:"errorBookModal",checkin:"checkinModal"};
+  document.getElementById(map[name]).style.display="flex";
+}
+function closeModal(id){
+  document.getElementById(id).style.display="none";
+}
+function selectPet(type){
+  state.petType = type;
+  saveLocal();
+  closeModal("petSelectModal");
+}
+function doCheckin(){
+  if(state.todayCheckIn) return alert("今天已经打卡啦");
+  state.todayCheckIn = true;
+  state.petExp +=20;
+  saveLocal();
+  alert("打卡成功！+20经验");
+}
+function refreshUI(){
+  document.getElementById("petName").innerText = state.petName;
+  document.getElementById("petLevel").innerText = state.petLevel;
+  document.getElementById("petExp").innerText = state.petExp;
+  document.getElementById("practiceCnt").innerText = state.practiceCount;
+  document.getElementById("voiceStatus").innerText = state.voiceReadOn?"开启":"关闭";
+  document.getElementById("errorCount").innerText = state.errorList.length;
+}
+
+// 初始化
+window.onload = function(){
+  loadLocal();
+  initThree();
+}
+</script>
+</body>
+</html>
